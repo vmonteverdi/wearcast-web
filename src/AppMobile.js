@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Send, MessageCircle, X, MapPin, Calendar, Cloud, Wind, Droplets, Sun, CloudRain, Loader } from 'lucide-react';
+import { ChevronLeft, Send, MessageCircle, MapPin } from 'lucide-react';
 
 // OpenRouter configuration
 const OPENROUTER_API_KEY = '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';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-// Your existing weather recommendation engine (keeping all the logic)
+// Your existing weather recommendation engine
 const ACTIVITY_PROFILES = {
   general: {
     name: 'General',
@@ -50,7 +50,7 @@ const ACTIVITY_PROFILES = {
   },
 };
 
-// Simplified weather recommender class
+// Weather recommender class
 class WeatherRecommender {
   constructor() {
     this.profiles = ACTIVITY_PROFILES;
@@ -60,10 +60,8 @@ class WeatherRecommender {
     const profile = this.profiles[activity] || this.profiles.general;
     const effectiveTemp = weatherData.temp + (profile.tempAdjustment || 0);
     
-    // Calculate comfort score
     const comfort = this.assessComfort(effectiveTemp, weatherData, profile);
     
-    // Get clothing recommendation
     let clothing = '';
     if (effectiveTemp < 45) clothing = "Bundle up: heavy winter coat, hat, and gloves";
     else if (effectiveTemp < 55) clothing = "Wear a heavy jacket or coat";
@@ -119,7 +117,6 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
       throw new Error('Invalid weather data received');
     }
     
-    // Get weather description from weather code
     const getWeatherDescription = (code, isDay) => {
       if (code === 0) return isDay ? 'Sunny' : 'Clear';
       if (code <= 3) return 'Partly Cloudy';
@@ -132,7 +129,6 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
       return 'Unknown';
     };
     
-    // Process current weather
     const current = {
       temp: Math.round(data.current.temperature_2m),
       feels_like: Math.round(data.current.apparent_temperature),
@@ -145,11 +141,9 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
             data.current.cloud_cover > 70 ? '☁️' : '⛅'
     };
     
-    // Process hourly data for today
     const now = new Date();
     const todayDate = now.toISOString().split('T')[0];
     
-    // Define time buckets
     const timeBuckets = [
       { label: '9am-12pm', hours: [9, 10, 11] },
       { label: '12pm-3pm', hours: [12, 13, 14] },
@@ -157,7 +151,6 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
       { label: '6pm-9pm', hours: [18, 19, 20] }
     ];
     
-    // Process hourly data into time buckets
     const hourly = timeBuckets.map(bucket => {
       const bucketData = bucket.hours.map(hour => {
         const index = data.hourly.time.findIndex(t => 
@@ -176,7 +169,6 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
       
       if (bucketData.length === 0) return null;
       
-      // Average the values for the time bucket
       const avg = bucketData.reduce((acc, curr) => ({
         temp: acc.temp + curr.temp,
         humidity: acc.humidity + curr.humidity,
@@ -194,7 +186,6 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
       };
     }).filter(Boolean);
     
-    // Process 7-day forecast
     const forecast = [];
     const days = [...new Set(data.hourly.time.map(t => t.split('T')[0]))];
     
@@ -225,7 +216,6 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
     return { current, hourly, forecast };
   } catch (error) {
     console.error('Error fetching weather data:', error);
-    // Return fallback data if API fails
     return {
       current: {
         temp: 72,
@@ -247,12 +237,240 @@ const fetchWeatherData = async (lat = 34.0522, lon = -118.2437) => {
   }
 };
 
-// Get weather icon based on conditions
-const getWeatherIcon = (clouds, isRaining) => {
-  if (isRaining) return <CloudRain className="w-10 h-10 text-blue-500" />;
-  if (clouds > 70) return <Cloud className="w-10 h-10 text-gray-500" />;
-  if (clouds > 30) return <Cloud className="w-10 h-10 text-gray-400" />;
-  return <Sun className="w-10 h-10 text-yellow-500" />;
+// Styles
+const styles = {
+  container: {
+    maxWidth: '430px',
+    margin: '0 auto',
+    backgroundColor: '#fff',
+    minHeight: '100vh',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    position: 'relative'
+  },
+  header: {
+    backgroundColor: '#fff',
+    borderBottom: '1px solid #e5e5e5',
+    padding: '16px 20px'
+  },
+  title: {
+    fontSize: '32px',
+    fontWeight: '700',
+    margin: '0 0 8px 0'
+  },
+  location: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: '#666',
+    fontSize: '16px'
+  },
+  section: {
+    padding: '20px',
+    backgroundColor: '#f8f9fa',
+    borderBottom: '1px solid #e5e5e5'
+  },
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    marginBottom: '16px'
+  },
+  activityPills: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px'
+  },
+  activityPill: {
+    padding: '10px 16px',
+    borderRadius: '24px',
+    fontSize: '15px',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    backgroundColor: '#e9ecef',
+    color: '#333'
+  },
+  activityPillActive: {
+    backgroundColor: '#007AFF',
+    color: '#fff'
+  },
+  weatherCard: {
+    backgroundColor: '#fff',
+    borderRadius: '16px',
+    padding: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    margin: '0 20px 20px'
+  },
+  tempMain: {
+    fontSize: '48px',
+    fontWeight: '300',
+    marginBottom: '4px'
+  },
+  feelsLike: {
+    fontSize: '15px',
+    color: '#666'
+  },
+  weatherIcon: {
+    fontSize: '40px',
+    marginBottom: '8px'
+  },
+  recommendationBox: {
+    backgroundColor: '#e8f4ff',
+    padding: '16px',
+    borderRadius: '12px',
+    marginTop: '16px'
+  },
+  recommendationTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#0066cc',
+    marginBottom: '8px'
+  },
+  recommendationText: {
+    fontSize: '15px',
+    color: '#333',
+    lineHeight: '1.5'
+  },
+  comfortBadge: {
+    display: 'inline-block',
+    padding: '4px 12px',
+    borderRadius: '16px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: '8px'
+  },
+  timeSlot: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 0',
+    borderBottom: '1px solid #e5e5e5'
+  },
+  timeLabel: {
+    fontWeight: '600',
+    marginBottom: '4px'
+  },
+  timeConditions: {
+    fontSize: '14px',
+    color: '#666'
+  },
+  comfortScore: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '700',
+    fontSize: '18px',
+    color: '#fff'
+  },
+  chatFab: {
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
+    width: '56px',
+    height: '56px',
+    backgroundColor: '#007AFF',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 12px rgba(0,122,255,0.3)',
+    cursor: 'pointer',
+    border: 'none',
+    color: '#fff'
+  },
+  chatOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    zIndex: 1000,
+    display: 'flex',
+    flexDirection: 'column',
+    maxWidth: '430px',
+    margin: '0 auto'
+  },
+  chatHeader: {
+    padding: '16px 20px',
+    borderBottom: '1px solid #e5e5e5',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    backgroundColor: '#fff'
+  },
+  chatMessages: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '20px',
+    backgroundColor: '#f8f9fa'
+  },
+  message: {
+    marginBottom: '16px',
+    display: 'flex',
+    gap: '10px'
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    padding: '12px 16px',
+    borderRadius: '18px',
+    fontSize: '15px',
+    lineHeight: '1.4'
+  },
+  userBubble: {
+    backgroundColor: '#007AFF',
+    color: '#fff',
+    marginLeft: 'auto'
+  },
+  assistantBubble: {
+    backgroundColor: '#fff',
+    color: '#333'
+  },
+  suggestionChips: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '10px'
+  },
+  suggestionChip: {
+    padding: '8px 14px',
+    backgroundColor: '#fff',
+    border: '1px solid #ddd',
+    borderRadius: '16px',
+    fontSize: '14px',
+    cursor: 'pointer'
+  },
+  chatInputContainer: {
+    padding: '16px 20px',
+    borderTop: '1px solid #e5e5e5',
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center',
+    backgroundColor: '#fff'
+  },
+  chatInput: {
+    flex: 1,
+    padding: '10px 16px',
+    border: '1px solid #ddd',
+    borderRadius: '20px',
+    fontSize: '15px',
+    outline: 'none'
+  },
+  sendButton: {
+    width: '36px',
+    height: '36px',
+    backgroundColor: '#007AFF',
+    border: 'none',
+    borderRadius: '50%',
+    color: '#fff',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
 };
 
 // Main App Component
@@ -275,7 +493,6 @@ const App = () => {
   const [weatherData, setWeatherData] = useState(null);
   const chatContainerRef = useRef(null);
 
-  // Load weather data on mount
   useEffect(() => {
     const loadWeather = async () => {
       const data = await fetchWeatherData();
@@ -284,19 +501,16 @@ const App = () => {
     loadWeather();
   }, []);
 
-  // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Handle activity selection
   const handleActivitySelect = (activity) => {
     setSelectedActivity(activity);
   };
 
-  // Get best times for selected activity
   const getBestTimes = () => {
     if (!weatherData) return [];
     
@@ -309,24 +523,20 @@ const App = () => {
     }).sort((a, b) => b.comfort - a.comfort).slice(0, 3);
   };
 
-  // Get comfort color
   const getComfortColor = (score) => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (score >= 80) return '#22c55e';
+    if (score >= 60) return '#eab308';
+    return '#ef4444';
   };
 
-  // Handle chat message send
   const handleSendMessage = async (message = inputValue) => {
     if (!message.trim()) return;
     
-    // Add user message
     setMessages(prev => [...prev, { role: 'user', content: message }]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // Create context with weather data for the LLM
       const context = `
         You are Wearcast, a friendly weather assistant. Use the following current weather data to provide personalized advice:
         
@@ -385,8 +595,10 @@ const App = () => {
 
   if (!weatherData) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <Loader className="w-8 h-8 animate-spin text-blue-500" />
+      <div style={styles.container}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <div>Loading weather data...</div>
+        </div>
       </div>
     );
   }
@@ -395,193 +607,147 @@ const App = () => {
   const bestTimes = getBestTimes();
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen relative">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-5 py-4">
-        <h1 className="text-3xl font-bold">Wearcast</h1>
-        <div className="flex items-center gap-2 text-gray-600 mt-1">
-          <MapPin className="w-4 h-4" />
-          <span className="text-sm">Los Angeles, CA</span>
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Wearcast</h1>
+        <div style={styles.location}>
+          <MapPin size={16} />
+          <span>Los Angeles, CA</span>
         </div>
       </div>
 
-      {/* Activity Selection */}
-      <div className="px-5 py-4 bg-white border-b border-gray-100">
-        <h2 className="text-lg font-semibold mb-3">What are you planning?</h2>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => handleActivitySelect('general')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              selectedActivity === 'general' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            General
-          </button>
-          <button
-            onClick={() => handleActivitySelect('running_sport')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              selectedActivity === 'running_sport' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            🏃 Running
-          </button>
-          <button
-            onClick={() => handleActivitySelect('pool_lounging')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              selectedActivity === 'pool_lounging' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            🏊 Pool
-          </button>
-          <button
-            onClick={() => handleActivitySelect('eating_outside')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              selectedActivity === 'eating_outside' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            🍽️ Dining
-          </button>
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>What are you planning?</h2>
+        <div style={styles.activityPills}>
+          {['general', 'running_sport', 'pool_lounging', 'eating_outside'].map(activity => (
+            <button
+              key={activity}
+              onClick={() => handleActivitySelect(activity)}
+              style={{
+                ...styles.activityPill,
+                ...(selectedActivity === activity ? styles.activityPillActive : {})
+              }}
+            >
+              {activity === 'general' && 'General'}
+              {activity === 'running_sport' && '🏃 Running'}
+              {activity === 'pool_lounging' && '🏊 Pool'}
+              {activity === 'eating_outside' && '🍽️ Dining'}
+            </button>
+          ))}
           <button
             onClick={() => setShowChat(true)}
-            className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            style={styles.activityPill}
           >
             ✈️ Travel
           </button>
         </div>
       </div>
 
-      {/* Current Weather */}
-      <div className="px-5 py-4 bg-gray-50">
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="text-5xl font-light">{weatherData.current.temp}°F</div>
-              <div className="text-sm text-gray-500 mt-1">Feels like {weatherData.current.feels_like}°F</div>
-            </div>
-            <div className="text-right">
-              {getWeatherIcon(weatherData.current.clouds, false)}
-              <div className="text-sm text-gray-600 mt-2">
-                {weatherData.current.description}
-              </div>
+      <div style={styles.weatherCard}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+          <div>
+            <div style={styles.tempMain}>{weatherData.current.temp}°F</div>
+            <div style={styles.feelsLike}>Feels like {weatherData.current.feels_like}°F</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={styles.weatherIcon}>{weatherData.current.icon}</div>
+            <div style={{ fontSize: '14px', color: '#666' }}>
+              {weatherData.current.description}
             </div>
           </div>
-          
-          <div className="bg-blue-50 rounded-xl p-4 mt-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Right now</h3>
-            <p className="text-sm text-blue-800">{currentRecommendation.clothing}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <div className={`text-xs font-semibold text-white px-2 py-1 rounded-full ${getComfortColor(currentRecommendation.comfort)}`}>
-                {currentRecommendation.comfort}% comfort
-              </div>
-            </div>
+        </div>
+        
+        <div style={styles.recommendationBox}>
+          <h3 style={styles.recommendationTitle}>Right now</h3>
+          <p style={styles.recommendationText}>{currentRecommendation.clothing}</p>
+          <div style={{ ...styles.comfortBadge, backgroundColor: getComfortColor(currentRecommendation.comfort) }}>
+            {currentRecommendation.comfort}% comfort
           </div>
         </div>
       </div>
 
-      {/* Best Times */}
-      <div className="px-5 py-4 bg-gray-50">
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Best times today</h3>
-          <div className="space-y-3">
-            {bestTimes.map((time, index) => (
-              <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div className="flex-1">
-                  <div className="font-medium">{time.time}</div>
-                  <div className="text-sm text-gray-600">
-                    {time.temp}°F • {time.humidity}% humidity
-                  </div>
-                </div>
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold ${getComfortColor(time.comfort)}`}>
-                  {time.comfort}
+      <div style={styles.weatherCard}>
+        <h3 style={styles.sectionTitle}>Best times today</h3>
+        <div>
+          {bestTimes.map((time, index) => (
+            <div key={index} style={styles.timeSlot}>
+              <div style={{ flex: 1 }}>
+                <div style={styles.timeLabel}>{time.time}</div>
+                <div style={styles.timeConditions}>
+                  {time.temp}°F • {time.humidity}% humidity
                 </div>
               </div>
-            ))}
-          </div>
+              <div style={{ ...styles.comfortScore, backgroundColor: getComfortColor(time.comfort) }}>
+                {time.comfort}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Chat FAB */}
       <button
         onClick={() => setShowChat(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 rounded-full shadow-lg flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
+        style={styles.chatFab}
       >
-        <MessageCircle className="w-6 h-6" />
+        <MessageCircle size={24} />
       </button>
 
-      {/* Chat Overlay */}
       {showChat && (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col">
-          {/* Chat Header */}
-          <div className="flex items-center gap-4 px-5 py-4 border-b border-gray-200">
-            <button onClick={() => setShowChat(false)}>
-              <ChevronLeft className="w-6 h-6" />
+        <div style={styles.chatOverlay}>
+          <div style={styles.chatHeader}>
+            <button onClick={() => setShowChat(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <ChevronLeft size={24} />
             </button>
-            <h2 className="text-xl font-semibold">Ask Wearcast</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Ask Wearcast</h2>
           </div>
 
-          {/* Messages */}
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-5 py-4 bg-gray-50">
+          <div ref={chatContainerRef} style={styles.chatMessages}>
             {messages.map((message, index) => (
-              <div key={index} className={`mb-4 ${message.role === 'user' ? 'text-right' : ''}`}>
-                <div className={`inline-block max-w-[80%] ${message.role === 'user' ? 'ml-auto' : ''}`}>
-                  <div className={`rounded-2xl px-4 py-3 ${
-                    message.role === 'user' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-white text-gray-800'
-                  }`}>
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <div key={index}>
+                <div style={message.role === 'user' ? { ...styles.message, justifyContent: 'flex-end' } : styles.message}>
+                  <div style={{
+                    ...styles.messageBubble,
+                    ...(message.role === 'user' ? styles.userBubble : styles.assistantBubble)
+                  }}>
+                    {message.content}
                   </div>
-                  {message.suggestions && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {message.suggestions.map((suggestion, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleSendMessage(suggestion)}
-                          className="text-sm px-3 py-2 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
+                {message.suggestions && (
+                  <div style={styles.suggestionChips}>
+                    {message.suggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendMessage(suggestion)}
+                        style={styles.suggestionChip}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {isLoading && (
-              <div className="flex items-center gap-2 text-gray-500">
-                <Loader className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Thinking...</span>
-              </div>
+              <div style={{ color: '#666', fontSize: '14px' }}>Thinking...</div>
             )}
           </div>
 
-          {/* Input */}
-          <div className="px-5 py-4 bg-white border-t border-gray-200">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask about weather or packing..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-blue-500"
-              />
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={!inputValue.trim() || isLoading}
-                className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
+          <div style={styles.chatInputContainer}>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Ask about weather or packing..."
+              style={styles.chatInput}
+            />
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={!inputValue.trim() || isLoading}
+              style={styles.sendButton}
+            >
+              <Send size={18} />
+            </button>
           </div>
         </div>
       )}
